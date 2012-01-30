@@ -16,3 +16,12 @@ hello() ->
 greet_and_add_two(X) ->
     hello(),
     add(X,2).
+
+greet(male, Name) ->
+    format("Hello, Mr ~s!", [Name]);
+
+greet(female, Name) ->
+    format("Hello, Mrs ~s!", [Name]);
+
+greet(_, Name) ->
+    format("Hello ~s!", [Name]).
