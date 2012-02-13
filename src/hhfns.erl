@@ -55,3 +55,14 @@ filter(Predicate, [H|T], Acc)->
         true -> filter(Predicate, T, [H|Acc]);
         false -> filter(Predicate, T, Acc)
     end.
+
+%% Finding maximum in a given list AKA reduction from a list to a given value
+max([H|T])->max2(T,H).
+
+max2([],Max)->Max;
+max2([H|T],Max) when H > Max -> max2(T,H);
+max2([_|T],Max)->max2(T,Max).
+
+
+fold(_, Start, []) -> Start;
+fold(F, Start, [H|T])-> fold(F, F(H,Start), T).
