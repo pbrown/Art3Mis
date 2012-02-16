@@ -39,3 +39,28 @@ black_knight(Attack) when is_function(Attack, 0) ->
 	end.
 
 talk()->"blah blah".
+
+
+whoa()->
+    try
+        talk(),
+        _Knight= "None shall pass",
+        _Doubles = [ N*2 || N <- lists:seq(1,100)],
+        throw(up),
+        _WillReturnThis = tequila
+     catch
+        Exception:Reason->{caught, Exception, Reason}
+     end.
+
+%% Tree Traversal (find a value in a binary tree)
+%% Tree is in the form of {node, {Key, Value, NodeLeft, NodeRight}} or {node, 'nil'}
+
+has_value(_, {node, nil})->
+    false;
+has_value(Val, {node, {_, Val, _, _}})->
+    true;
+has_value(Val, {node, {_ ,_ ,Left,Right}})->
+    case has_value(Val, Left) of
+        true ->true;
+        false -> has_value(Val, Right)
+     end.
