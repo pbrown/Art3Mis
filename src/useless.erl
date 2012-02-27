@@ -1,27 +1,16 @@
+#! /usr/bin/env escript
 -module(useless).
--export([add/2, hello/0, greet_and_add_two/1, greet/2]).
--import(io, [format/1, format/2]).
+-export([add/2, main/1]).
 -author("Pooja Garg").
+-mode(compile).
 
+main([String])->
+	T = string:tokens(String, " "),
+	N1 = list_to_integer(lists:nth(1,T)),
+	N2 = list_to_integer(lists:nth(2,T)),
+	Sum =add(N1, N2),
+	io:format("Sum of 2 numbers: ~p ~n", [Sum]).
 
-add(A,B) ->
-    A + B.
+add(A,B)->
+	A+B.
 
-%% Show Greetings
-%% io:format is the standard function used to output text.
-hello() ->
-    format("Hello World !\n").
-
-
-greet_and_add_two(X) ->
-    hello(),
-    add(X,2).
-
-greet(male, Name) ->
-    format("Hello, Mr ~s!", [Name]);
-
-greet(female, Name) ->
-    format("Hello, Mrs ~s!", [Name]);
-
-greet(_, Name) ->
-    format("Hello ~s!", [Name]).
