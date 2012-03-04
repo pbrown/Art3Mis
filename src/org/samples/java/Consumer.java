@@ -16,10 +16,16 @@ public class Consumer extends Thread {
    }
 
     public void run(){
-        try{
-            while(true){
 
-            }
-        }
+       fridge.setItemToStore("apple");
+       fridge.setItemToStore("bread");
+    }
+
+    public static void main(String args[]){
+        Fridge fridge = new Fridge();
+        fridge.start();
+        Consumer consumer = new Consumer(fridge);
+        consumer.start();
+        System.out.println("Fridge State: "+ fridge.getFridge().toString());
     }
 }
