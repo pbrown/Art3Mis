@@ -1,8 +1,8 @@
 -module(area_server).
--export([loop/0, rpc/2, start/0, area/2]).
+-export([loop/0, rpc/2, start/0]).
 
 %server start
-start() ->
+start ->
      spawn(?MODULE, loop, []).
 
 area(Pid, What) ->
