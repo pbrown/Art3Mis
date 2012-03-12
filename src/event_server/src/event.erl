@@ -18,3 +18,14 @@ loop(S = #state{server=Server}) ->
     after S#state.to_go*1000 ->
             Server ! {done, S#state.name}
     end.
+
+cancel(Pid) ->
+    Ref = erlang:monitor(process, pid),
+    Pid ! {self(), Ref, cancel},
+    receive
+       {Ref, ok} ->
+            erlang:demonitor(Ref, [flush]),
+            ok;
+       {'DOWN', Ref, process, Pid, _Reason} ->
+            ok
+    end.
