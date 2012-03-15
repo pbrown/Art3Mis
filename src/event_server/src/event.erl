@@ -43,9 +43,9 @@ normalize(N)->
 
 time_to_go(Timeout={{_,_,_}, {_,_,_}}) ->
 	Now = calendar:local_time(),
-	io:format("Now: ~p", [Now]),
+	io:format("Now: ~p~n", [Now]),
 	ToGo = calendar:datetime_to_gregorian_seconds(Timeout) - calendar:datetime_to_gregorian_seconds(Now),
-	io:format("Time to go: ~p", [ToGo]),
+	io:format("Time for reminder to be fired: ~p~n", [ToGo]),
 	Secs = if ToGo > 0 -> ToGo;
 		  ToGo =<0 -> 0
 	       end,
