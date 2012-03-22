@@ -21,10 +21,80 @@ terminate() ->
 init() ->
     loop(#state{events=orddict:new(), clients=orddict:new()}).
 
+create_get_function() ->
+    fun(Sock, PathString, QueryString, Params, Fragment, Headers, Body, Pid)->
+            greet(Sock, Pid)
+    end.
+
+create_post_function() ->
+    fun(Sock, PathString, QueryString, Params, Fragment, Headers, Body, Pid)->
+          io:format("PathString: ~p~n QueryString: ~p~n Params: ~p~n", [PathString, QueryString, Params]),
+          case PathString of
+            "/subscribe" ->
+                subscribe(Sock, PathString, QueryString, Params, Fragment, Headers, Body, Pid);
+            "/add-event" ->
+                add_event(Sock, PathString, QueryString, Params, Fragment, Headers, Body, Pid);
+            _ ->
+             gen_tcp:send(Sock, "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=UTF-8\r\nConnection: close\r\n\r\nUnrecognized QueryString!\r\n\r\n")
+          end
+    end.
+
+greet(Sock, Pid) ->
+    Ref = erlang:monitor(process, whereis(?MODULE)),
+    ?MODULE ! {self(), Ref, {greet, Pid}},
+    receive
+        {Ref, ok} ->
+            gen_tcp:send(Sock, "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=UTF-8\r\nConnection: close\r\n\r\nWelcome to Event Server!\r\n\r\n"),
+            {ok, Ref};
+        {DOWN, Ref, process, _Pid, Reason}->
+            {error, reason}
+    after(5000) ->
+        {error, timeout}
+    end.
+
+
+subscribe(Sock, PathString, QueryString, Params, Fragment, Headers, Body, Pid)->
+    Ref = erlang:monitor(process, whereis(?MODULE)),
+    ?MODULE ! {self(), Ref, {subscribe, Pid}},
+    receive
+        {Ref, ok} ->
+            gen_tcp:send(Sock, "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=UTF-8\r\nConnection: close\r\n\r\nClient Subscribed!\r\n\r\n"),
+            {ok, Ref};
+        {DOWN, Ref, process, _Pid, Reason}->
+            {error, reason}
+    after(5000) ->
+        {error, timeout}
+    end.
+
+
+add_event(Sock, PathString, QueryString, Params, Fragment, Headers, Body, Pid) ->
+   Ref = make_ref(),
+   parseJson(Body),
+   gen_tcp:send(Sock, "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=UTF-8\r\nConnection: close\r\n\r\nTemporarily event added!\r\n\r\n").
+
+
+parseJson(Body) ->
+    io:format("Body is ~p~n", [Body]),
+    Tokens = string:tokens(Body, "{},\n"),
+    io:format("Tokens are ~p~n", [Tokens]),
+    parseList(Tokens).
+
+parseList([H|T]) ->
+    io:format("~p~n", [string:tokens(H, ":\"")]),
+    parseList(T);
+
+parseList([]) ->
+    ok.
+
+
 loop(S=#state{}) ->
     io:format("Registered Clients ~p~n", [S#state.clients]),
     io:format("Registered Events ~p~n", [S#state.events]),
     receive
+        {Pid, MsgRef, {greet, Client}} ->
+            io:format("Pinged to Greet ~n"),
+            Pid ! {MsgRef, ok},
+            loop(S);
         {Pid, MsgRef, {subscribe, Client}} ->
             Ref = erlang:monitor(process, Client),
             NewClients = orddict:store(Ref, Client, S#state.clients),
@@ -104,3 +174,4 @@ valid_time(H,M,S) when H >= 0, H < 24,
                        M >= 0, M < 60,
                        S >= 0, S < 60 -> true;
 valid_time(_,_,_) -> false.
+
