@@ -1,7 +1,6 @@
 -module(simpleservice).
 -export([start/2, start/3, loop/3, handle_request/3, separate_path_parts/2, extract_params/1]).
 
-
 start(Port, Functions)->    
     start(Port, Functions, null).
 
@@ -89,3 +88,4 @@ read_body(Sock, Headers)->
 	{ok, Body} -> {Headers, Body};
 	_ -> {error, "We No Habeas Corpus!"}
     end.
+
