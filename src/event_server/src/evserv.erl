@@ -69,8 +69,24 @@ subscribe(Sock, PathString, QueryString, Params, Fragment, Headers, Body, Pid)->
 
 add_event(Sock, PathString, QueryString, Params, Fragment, Headers, Body, Pid) ->
    Ref = make_ref(),
-   parse(json, Body),
    gen_tcp:send(Sock, "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=UTF-8\r\nConnection: close\r\n\r\nTemporarily event added!\r\n\r\n").
+
+create_record(json, Body)->
+    Accumulator = #event{},
+    JsonKV = ejson:json(Body),
+    io:format("JsonKV ~p~n", [JsonKV]),
+    Foo=lists:foreach(fun(H) ->
+        io:format("H value is ~p~n", [H]),
+        case H of
+         {"name", Name} ->
+                    io:format("Did I come here ~p~n",[Name]),
+                    MyFoo = Accumulator#event{name = Name},
+                    io:format("Accu ~p~n", [MyFoo]);
+         {"description", Description} ->
+                    Accumulator#event{description = Description}
+         end end, JsonKV),
+
+     io:format("Accumulator ~p~n", [Foo]).
 
 
 loop(S=#state{}) ->
@@ -164,8 +180,10 @@ valid_time(_,_,_) -> false.
 % Extract Body of a Post Element  and return back as a list of lists
 parse(json, Body) ->
     io:format("Body is ~p~n", [Body]),
-    Tokens = string:tokens(Body, "{},\n"),
+    Tokens = string:tokens(Body, "{},:"),
     io:format("Tokens are ~p~n", [Tokens]),
+    MyTokens = lists:flatmap(fun(X)->string:substr(X, 2, 4) end, Tokens),
+    io:format("My Tokens are ~p~n", [MyTokens]),
     Acc = parseTokens(Tokens),
     io:format("Accumulated values ~p~n", [Acc]).
 
@@ -175,7 +193,9 @@ parseTokens(L)->
 parseTokens([], Accumulator) -> Accumulator;
 
 parseTokens([H|T],Accumulator) ->
-     case lists:nth(1,H) of
+     Token = lists:nth(1,H),
+     io:format("Token being evaluated now ~p~n", [Token]),
+     case Token of
          "name" ->
                     Accumulator#event{name = lists:nth(1, H)};
          "description" ->
