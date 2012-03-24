@@ -1,24 +1,46 @@
 -module(ejson).
--compile(export_all).
--record(event, {name="", description="", pid, timeout={{1970,1,1}, {0,0,0}}}). 
+-export([json/1]).
+-record(json, {list=[], raw=[]}).
+-record(jsonkv, {value=[], raw=[]}).
 
 
-parse(json, Body) ->
-	io:format("In function parse json ~p~n", [Body]),
-	Tokens = string:tokens(Body, "\"{},: "),
-	io:format("First Tokens ~p~n", [Tokens]),	
-	parse(Tokens).
+% handles values that are quoted (this one ends the quote)
+json_value_quoted(Value, [$" | T]) ->
+  #jsonkv{value=Value, raw=T};
+
+json_value_quoted(Value, [Next | T]) ->
+  json_value_quoted(Value ++ [Next], T).
+
+% returns JSON Key Values with remaining JSON
+json_value(Value, RawJSON) ->
+  [Next | T] = RawJSON,
+  case Next of
+    $: -> throw('unexpected token');
+    ${ -> J = json(RawJSON),                                  % recurse to get list
+            #jsonkv{value=J#json.list, raw=J#json.raw};
+    $, -> #jsonkv{value=string:strip(Value), raw=RawJSON};    % terminator, return
+    $} -> #jsonkv{value=string:strip(Value), raw=RawJSON};    % terminator, return
+    $" -> json_value_quoted(Value, T);                        % run to next quote,exit
+    _ -> json_value(Value ++ [Next], T)                       % recurse
+  end.
 
 
-parse([]) ->
-	io:format("Done parsing the list~n");
+% parses the Key Value pairs (KVPs) based on , & } delimiters
+json(JSON, Key) ->
+  [Next | T] = JSON#json.raw,
+  case {Next, T} of
+    {$", _} -> json(JSON#json{raw=T}, Key);        % ignore
+    {${, _} -> json(#json{raw=T}, []);             % start new hash
+    {$,, _} -> json(JSON#json{raw=T}, []);         % add new value
+    {$:, _} -> KV = json_value([], T),  % get value for key
+            List = lists:merge(JSON#json.list, [{string:strip(Key), KV#jsonkv.value}]),
+            json(#json{list=List, raw=KV#jsonkv.raw}, []);  % add new KVP
+    {$}, []} -> JSON#json.list;                    %DONE!
+    {$}, _} -> JSON#json{raw=T};                   %List parse, but more remains!
+    {_, _} -> json(JSON#json{raw=T}, Key ++ [Next])  % add to key
+  end.
+% entry point
 
-parse([H|T]) ->
-	case H of 
-		"name" ->
-			io:format("Value of name ~p~n", [H]);	
-		"description" ->
-			io:format("Description ~p~n", [H])
-	end.
-
+json(RawJSON) ->
+  json(#json{raw=RawJSON}, []).
 	
