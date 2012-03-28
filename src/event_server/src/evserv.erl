@@ -31,9 +31,9 @@ create_post_function() ->
           io:format("PathString: ~p~n QueryString: ~p~n Params: ~p~n", [PathString, QueryString, Params]),
           case PathString of
             "/subscribe" ->
-                subscribe(Sock, PathString, QueryString, Params, Fragment, Headers, Body, Pid);
+                subscribe(Sock, Pid);
             "/add-event" ->
-                add_event(Sock, PathString, QueryString, Params, Fragment, Headers, Body, Pid);
+                add_event(Sock, Body, Pid);
             _ ->
              gen_tcp:send(Sock, "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=UTF-8\r\nConnection: close\r\n\r\nUnrecognized QueryString!\r\n\r\n")
           end
@@ -53,7 +53,7 @@ greet(Sock, Pid) ->
     end.
 
 
-subscribe(Sock, PathString, QueryString, Params, Fragment, Headers, Body, Pid)->
+subscribe(Sock, Pid)->
     Ref = erlang:monitor(process, whereis(?MODULE)),
     ?MODULE ! {self(), Ref, {subscribe, Pid}},
     receive
@@ -67,26 +67,20 @@ subscribe(Sock, PathString, QueryString, Params, Fragment, Headers, Body, Pid)->
     end.
 
 
-add_event(Sock, PathString, QueryString, Params, Fragment, Headers, Body, Pid) ->
+add_event(Sock, Body, Pid) ->
    Ref = make_ref(),
-   gen_tcp:send(Sock, "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=UTF-8\r\nConnection: close\r\n\r\nTemporarily event added!\r\n\r\n").
-
-create_record(json, Body)->
-    Accumulator = #event{},
-    JsonKV = ejson:json(Body),
-    io:format("JsonKV ~p~n", [JsonKV]),
-    Foo=lists:foreach(fun(H) ->
-        io:format("H value is ~p~n", [H]),
-        case H of
-         {"name", Name} ->
-                    io:format("Did I come here ~p~n",[Name]),
-                    MyFoo = Accumulator#event{name = Name},
-                    io:format("Accu ~p~n", [MyFoo]);
-         {"description", Description} ->
-                    Accumulator#event{description = Description}
-         end end, JsonKV),
-
-     io:format("Accumulator ~p~n", [Foo]).
+   Event = create_event(json, Body),
+   io:format("Parsed Event ~p~n", [Event]),
+   ?MODULE ! {self(), Ref, {add, Event#event.name, Event#event.description, Event#event.timeout}},
+   receive
+        {Ref, ok} ->
+            gen_tcp:send(Sock, "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=UTF-8\r\nConnection: close\r\n\r\nEvent added!\r\n\r\n"),
+            {ok, Ref};
+        {DOWN, Ref, process, _Pid, Reason}->
+            {error, reason}
+   after(5000) ->
+        {error, timeout}
+   end.
 
 
 loop(S=#state{}) ->
@@ -103,7 +97,7 @@ loop(S=#state{}) ->
             Pid ! {MsgRef, ok},
             loop(S#state{clients=NewClients});
         {Pid, MsgRef, {add, Name, Description, TimeOut}} ->
-            io:format("Adding Event ~p~n", [Name]),
+            io:format("Event ~p to be fired at ~p~n", [Name, TimeOut]),
             case valid_datetime(TimeOut) of
                 true ->
                     EventPid = event:start_link(Name, TimeOut),
@@ -116,6 +110,7 @@ loop(S=#state{}) ->
                     Pid ! {MsgRef, ok},
                     loop(S#state{events=NewEvents});
                 false ->
+                    io:format("Error ~n"),
                     Pid ! {MsgRef, {error, bad_timeout}},
                     loop(S)
             end;
@@ -161,6 +156,7 @@ send_to_clients(Msg, ClientDict) ->
 
 % Valid date time format    {{YYYY, MM, DD,}, {H,M,S}}
 valid_datetime({Date,Time}) ->
+    io:format("Did I come here?"),
     try
         io:format("Date received: ~p ~p ~n", [Date, Time]),
         calendar:valid_date(Date) andalso valid_time(Time)
@@ -177,31 +173,25 @@ valid_time(H,M,S) when H >= 0, H < 24,
                        S >= 0, S < 60 -> true;
 valid_time(_,_,_) -> false.
 
-% Extract Body of a Post Element  and return back as a list of lists
-parse(json, Body) ->
-    io:format("Body is ~p~n", [Body]),
-    Tokens = string:tokens(Body, "{},:"),
-    io:format("Tokens are ~p~n", [Tokens]),
-    MyTokens = lists:flatmap(fun(X)->string:substr(X, 2, 4) end, Tokens),
-    io:format("My Tokens are ~p~n", [MyTokens]),
-    Acc = parseTokens(Tokens),
-    io:format("Accumulated values ~p~n", [Acc]).
+% Utility Functions for creating an event from a body of a post
 
-parseTokens(L)->
-    parseTokens(L, Event=#event{}).
+create_event(json, Body)->
+    JsonKV = ejson:json(Body),
+    Event = parseList(JsonKV, #event{}),
+    Event.
 
-parseTokens([], Accumulator) -> Accumulator;
+parseList([], Accumulator)->
+    Accumulator;
 
-parseTokens([H|T],Accumulator) ->
-     Token = lists:nth(1,H),
-     io:format("Token being evaluated now ~p~n", [Token]),
-     case Token of
-         "name" ->
-                    Accumulator#event{name = lists:nth(1, H)};
-         "description" ->
-                    Accumulator#event{description = lists:nth(1, H)};
-          _ ->
-                io:format("Dropping element ~p~n", [H])
-     end,
-     parseTokens(T, Accumulator).
+parseList([Next|Tail], Accumulator) ->
+    case Next of
+        {"name", Name} ->
+                parseList(Tail, Accumulator#event{name = Name});
+        {"description", Description} ->
+                parseList(Tail, Accumulator#event{description = Description});
+        {"timeout", TimeOut} ->
+                parseList(Tail, Accumulator#event{timeout = TimeOut});
+        _ ->
+                parseList(Tail, Accumulator)
+    end.
 
