@@ -3,7 +3,7 @@
 
         <html>
             <head>
-                <title>Sample TodList</title>
+                <title>Sample TodoList</title>
             </head>
             <body>
                 <div id ='todoapp'>
@@ -22,9 +22,23 @@
                 </div>
 
 
-            </body>
+
             <script src="../bootstrap/js/jquery-1.7.min.js"></script>
             <script src="../bootstrap/js/backbone.js"></script>
             <script src="../bootstrap/js/backbone.localStorage.js"></script>
             <script src="../bootstrap/js/todo.js"></script>
+            <script src="../bootstrap/js/underscore.js"></script>
+
+
+            <!-- Templates -->
+
+            <script type="text/template" id="item-template">
+                <div class="view">
+                    <input class="toggle" type="checkbox" <%= done ? 'checked="checked"' : '' %> />
+                    <label><%=title></label>
+                    <a class="destroy"></a>
+                </div>
+                <input class="edit" type="text" value=<%=title%>"/>
+            </script>
+            </body>
         </html>
