@@ -191,7 +191,9 @@ parseList([Next|Tail], Accumulator) ->
                 parseList(Tail, Accumulator#event{description = Description});
         {"timeout", TimeOut} ->
                 parseList(Tail, Accumulator#event{timeout = TimeOut});
-        _ ->
+        {"pid", Pid} ->
+		parseList(Tail, Accumulator#event{pid = Pid});
+	_ ->
                 parseList(Tail, Accumulator)
     end.
 
