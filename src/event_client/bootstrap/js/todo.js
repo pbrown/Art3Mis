@@ -97,4 +97,20 @@
 
 
     });
+
+
+    var AppView = BackBone.View.extend({
+
+        el: $("#todoapp"),
+
+        events: {
+            "keypress #new-todo": "createOnEnter",
+            "click #clear-completed": "clearCompleted",
+            "click #toggle-all": "toggleAllComplete"
+        },
+
+        initialize: function(){
+            this.input =
+        }
+    })
 });
