@@ -190,10 +190,16 @@ parseList([Next|Tail], Accumulator) ->
         {"description", Description} ->
                 parseList(Tail, Accumulator#event{description = Description});
         {"timeout", TimeOut} ->
-                parseList(Tail, Accumulator#event{timeout = TimeOut});
+		TupleTimeOut = parseDate(TimeOut),
+                parseList(Tail, Accumulator#event{timeout = TupleTimeOut});
         {"pid", Pid} ->
 		parseList(Tail, Accumulator#event{pid = Pid});
 	_ ->
                 parseList(Tail, Accumulator)
     end.
 
+parseDate(TimeOut) ->
+    case io_lib:fread("~4d-~2d-~2dT~2d:~2d:~2d", TimeOut) of 
+   	{ok, [Year, Month, Day, Hour, Minute, Second], _} -> 
+		{{Year, Month, Day}, {Hour, Minute, Second}} 
+    end.
